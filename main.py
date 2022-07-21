@@ -50,16 +50,19 @@ def perform_query():
             res = list(map(lambda v: v.split(' ')[value], res))
         return res
 
-    file = open(f'./data/{file_name}')
-    res = file.read()
-    file.close()
-    it = res.split('\n')
-    print(it)
-    it = build_query(it, cmd_list[0], value_list[0])
-    it = build_query(it, cmd_list[1], value_list[1])
-    print('\n'.join(it))
+    with open(f'./data/{file_name}') as file:
+        res = build_query(file, cmd_list[0], value_list[0])
+        res = build_query(res, cmd_list[1], value_list[1])
+    # file = open(f'./data/{file_name}')
+    # res = file.read()
+    # file.close()
+    # it = res.split('\n')
+    # print(it)
+    # it = build_query(it, cmd_list[0], value_list[0])
+    # it = build_query(it, cmd_list[1], value_list[1])
+    # print('\n'.join(it))
 
-    return '<br>'.join(it)
+    return '<br>'.join(res)
 
 if __name__ == '__main__':
     app.run()
