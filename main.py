@@ -1,4 +1,7 @@
 import os
+import re
+from re import Pattern
+from typing import Optional, Dict, List, Set, Union, Iterable, AnyStr
 
 from flask import Flask, request, abort
 
@@ -11,21 +14,53 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 class QueryExeption(Exception):
     pass
 
+
+def build_query(it: Iterable[str], cmd: Optional[str], value: Optional[str]) -> Union[List[str], Set[str]]:
+    psy: Iterable[str] = map(lambda v: v.strip(), it)
+    res = psy
+    if cmd == 'filter':
+        res = list(filter(lambda v: value in v, res))
+    if cmd == 'sort':
+        value = bool(value)
+        res = sorted(res, reverse=value)
+    if cmd == 'unique':
+        res = set(res)
+    if cmd == 'limit':
+        value = int(value)
+        res = list(res)[:value]
+    if cmd == 'map':
+        value = int(value)
+        res = list(map(lambda l: l.split(' ')[value], res))
+    if cmd == 'regex':
+        regex: Pattern[str] = re.compile(value)
+        res = list(filter(regex.findall, res))  # Read Note below
+    else:
+        res = ['']
+    return res
+
+
+def reply(file_name: str, cmd_list: List[Optional[str]], value_list: List[Optional[str]]) -> str:
+    with open(f'./data/{file_name}') as file:
+        it: Union[List[str], Set[str]] = build_query(file, cmd_list[0], value_list[0])
+        it = build_query(it, cmd_list[1], value_list[1])
+
+    return '<br>'.join(it)
+
+
 @app.route("/perform_query")
-def perform_query():
+def perform_query() -> str:
     cmd_list = []
     value_list = []
     try:
-        request_args = request.args
+        request_args: Dict[str, str] = request.args
         for k, v in request_args.items():
             if k not in ['cmd1', 'value1', 'cmd2', 'value2', 'file_name']:
-                raise QueryExeption  # error 400 вернуть
-            # exec("%s = %d" % (k,v))
+                raise QueryExeption
         cmd_list.extend([request_args.get('cmd1'), request_args.get('cmd2')])
         value_list.extend([request_args.get('value1'), request_args.get('value2')])
-        file_name = request_args['file_name']
+        file_name: str = request_args['file_name']
     except QueryExeption as e:
-        abort(501, e)  # err 404 zabil kak
+        abort(501, e)
 
     try:
         with open(f'./data/{file_name}') as f:
@@ -33,36 +68,8 @@ def perform_query():
     except FileNotFoundError as e:
         abort(401, e)
 
-    def build_query(it, cmd, value):
-        res = map(lambda v: v.strip(), it)
-        if cmd == 'filter':
-            res = list(filter(lambda v: value in v, res))
-        if cmd == 'sort':
-            value = bool(value)
-            res = sorted(res, reverse=value)
-        if cmd == 'unique':
-            res = set(res)
-        if cmd == 'limit':
-            value = int(value)
-            res = list(res)[:value]
-        if cmd == 'map':
-            value = int(value)
-            res = list(map(lambda v: v.split(' ')[value], res))
-        return res
+    return reply(file_name, cmd_list, value_list)
 
-    with open(f'./data/{file_name}') as file:
-        res = build_query(file, cmd_list[0], value_list[0])
-        res = build_query(res, cmd_list[1], value_list[1])
-    # file = open(f'./data/{file_name}')
-    # res = file.read()
-    # file.close()
-    # it = res.split('\n')
-    # print(it)
-    # it = build_query(it, cmd_list[0], value_list[0])
-    # it = build_query(it, cmd_list[1], value_list[1])
-    # print('\n'.join(it))
-
-    return '<br>'.join(res)
 
 if __name__ == '__main__':
     app.run()
