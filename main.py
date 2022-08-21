@@ -15,31 +15,32 @@ class QueryExeption(Exception):
     pass
 
 
-def build_query(it: Iterable[str], cmd: Optional[str], value: Optional[str]) -> Union[List[str], Set[str]]:
+def build_query(it: Iterable[str], cmd: Optional[str], value: str) -> Union[List[str], Set[str]]:
     psy: Iterable[str] = map(lambda v: v.strip(), it)
     res = psy
     if cmd == 'filter':
         res = list(filter(lambda v: value in v, res))
     if cmd == 'sort':
-        value = bool(value)
-        res = sorted(res, reverse=value)
+        sort_argument = bool(value)
+        res = sorted(res, reverse=sort_argument)
     if cmd == 'unique':
         res = set(res)
     if cmd == 'limit':
-        value = int(value)
-        res = list(res)[:value]
+        limit_argument: int = int(value)
+        res = list(res)[:limit_argument]
     if cmd == 'map':
-        value = int(value)
-        res = list(map(lambda l: l.split(' ')[value], res))
+        map_argument = int(value)
+        res = list(map(lambda l: l.split(' ')[map_argument], res))
     if cmd == 'regex':
-        regex: Pattern[str] = re.compile(value)
+        regex_argument: str = value
+        regex: Pattern[str] = re.compile(regex_argument)
         res = list(filter(regex.findall, res))  # Read Note below
     else:
         res = ['']
     return res
 
 
-def reply(file_name: str, cmd_list: List[Optional[str]], value_list: List[Optional[str]]) -> str:
+def reply(file_name: str, cmd_list: List[str], value_list: List[str]) -> str:
     with open(f'./data/{file_name}') as file:
         it: Union[List[str], Set[str]] = build_query(file, cmd_list[0], value_list[0])
         it = build_query(it, cmd_list[1], value_list[1])
@@ -56,8 +57,8 @@ def perform_query() -> str:
         for k, v in request_args.items():
             if k not in ['cmd1', 'value1', 'cmd2', 'value2', 'file_name']:
                 raise QueryExeption
-        cmd_list.extend([request_args.get('cmd1'), request_args.get('cmd2')])
-        value_list.extend([request_args.get('value1'), request_args.get('value2')])
+        cmd_list.extend([request_args.get('cmd1', ''), request_args.get('cmd2', '')])
+        value_list.extend([request_args.get('value1', ''), request_args.get('value2', '')])
         file_name: str = request_args['file_name']
     except QueryExeption as e:
         abort(501, e)
